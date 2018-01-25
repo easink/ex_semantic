@@ -1,0 +1,3 @@
+[submodule "assets/vendor/semanticui"]
+	path = assets/vendor/semanticui
+	url = https://github.com/Semantic-Org/Semantic-UI-LESS.git
