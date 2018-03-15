@@ -1,7 +1,7 @@
 module Main exposing (..)
 
-import Html exposing (Html, Attribute, div, h1, input, text)
-import Html.Attributes exposing (class, style, placeholder, classList)
+import Html exposing (Html, Attribute, div, h1, input, text, select, option)
+import Html.Attributes exposing (class, style, placeholder, classList, attribute)
 import Html.Events exposing (onClick)
 import Phoenix.Socket
 import Phoenix.Channel
@@ -51,6 +51,7 @@ type alias Model =
     { people : List Person
     , tableState : Table.State
     , query : String
+    , dropdownstate : Bool
     , phxSocket : Phoenix.Socket.Socket Msg
     }
 
@@ -67,6 +68,7 @@ init =
             { people = []
             , tableState = Table.initialSort "Year"
             , query = ""
+            , dropdownstate = True
             , phxSocket = socket
             }
     in
@@ -114,6 +116,7 @@ presidentsMessageDecoder =
 
 type Msg
     = SetQuery String
+    | ToggleDropDown
     | SetTableState Table.State
     | PhoenixMsg (Phoenix.Socket.Msg Msg)
     | JoinChannel
@@ -130,6 +133,11 @@ update msg model =
     case msg of
         SetQuery newQuery ->
             ( { model | query = newQuery }
+            , Cmd.none
+            )
+
+        ToggleDropDown ->
+            ( { model | dropdownstate = not model.dropdownstate }
             , Cmd.none
             )
 
@@ -227,20 +235,53 @@ update msg model =
 
 
 view : Model -> Html Msg
-view { people, tableState, query } =
+view { people, tableState, dropdownstate, query } =
     let
         lowerQuery =
             String.toLower query
 
         acceptablePeople =
             List.filter (String.contains lowerQuery << String.toLower << .name) people
+
+        ( dropdownclass, dropdownmenu ) =
+            if dropdownstate then
+                ( "ui selection dropdown active visible", "menu transition visible" )
+            else
+                ( "ui selection dropdown", "menu" )
     in
-        div []
-            [ h1 [] [ text "Birthplaces of U.S. Presidents" ]
-            , input [ placeholder "Search by Name", onInput SetQuery ] []
-            , Table.view config tableState acceptablePeople
-            , div []
-                [ Button.button
+        div [ class "ui container" ]
+            [ div [ class "ui segment" ]
+                [ h1 [] [ text "Birthplaces of U.S. Presidents" ]
+                , div [ class "ui grid" ]
+                    [ div [ class "column four row" ]
+                        [ div [ class "left floated column" ]
+                            [ div [ class "ui huge button fluid" ] [] ]
+                        , div [ class "right floated column" ]
+                            [ div [ class "ui huge button fluid" ] [] ]
+                        ]
+                    ]
+                , div [ class "ui input" ]
+                    [ input [ placeholder "Search by Name", onInput SetQuery ] []
+                    ]
+                ]
+            , div [ class "table-wrapper" ]
+                [ Table.view config tableState acceptablePeople ]
+            , div [ class "ui segment" ]
+                [ select
+                    [ class "ui selection dropdown" ]
+                    [ option [] [ text "Male" ]
+                    , option [] [ text "Female" ]
+                    ]
+                , div [ class dropdownclass, onClick ToggleDropDown ]
+                    [ input [ Html.Attributes.type_ "hidden", Html.Attributes.name "gender", onClick ToggleDropDown ] []
+                    , Html.i [ class "dropdown icon", onClick ToggleDropDown ] []
+                    , div [ class "default text", onClick ToggleDropDown ] [ text "Gender" ]
+                    , div [ class dropdownmenu, onClick ToggleDropDown ]
+                        [ div [ class "item", attribute "data-value" "1" ] [ text "Male" ]
+                        , div [ class "item", attribute "data-value" "0" ] [ text "Female" ]
+                        ]
+                    ]
+                , Button.button
                     (Button.init
                         |> Button.attributes [ onClick LoadData ]
                         |> Button.primary
@@ -324,9 +365,9 @@ simpleTheadHelp ( name, status, onClick ) =
                 Table.Sortable selected ->
                     [ Html.text name
                     , if selected then
-                        darkGrey "↓"
+                        Html.i [ class "caret down icon" ] []
                       else
-                        lightGrey "↓"
+                        Html.i [ class "caret down icon" ] []
                     ]
 
                 Table.Reversible Nothing ->
@@ -336,12 +377,17 @@ simpleTheadHelp ( name, status, onClick ) =
 
                 Table.Reversible (Just isReversed) ->
                     [ Html.text name
-                    , darkGrey
-                        (if isReversed then
-                            "↑"
-                         else
-                            "↓"
-                        )
+                    , (if isReversed then
+                        Html.i [ class "caret up icon" ] []
+                       else
+                        Html.i [ class "caret down icon" ] []
+                      )
+                      -- , darkGrey
+                      --     (if isReversed then
+                      --         "↑"
+                      --      else
+                      --         "↓"
+                      --     )
                     ]
     in
         Html.th [ onClick ] content
